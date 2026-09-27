@@ -1,0 +1,6 @@
+{
+  "name": "My Learning Hub",
+  "description": "All-Kenya tertiary education workspace for students in Universities, National Polytechnics, TVET Colleges, and Vocational Training Centres across Kenya with CUE and TVETA verified directories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
