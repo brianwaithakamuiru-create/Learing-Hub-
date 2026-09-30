@@ -40,7 +40,9 @@ import { AboutView } from './components/public/AboutView';
 import { InstitutionDiscoveryModal } from './components/discovery/InstitutionDiscoveryModal';
 import { ProgrammeDiscoveryModal } from './components/discovery/ProgrammeDiscoveryModal';
 import { InstitutionAdminModal } from './components/admin/InstitutionAdminModal';
-import { Institution, AcademicProgramme } from './types';
+import { StudentProgrammeSelectionPortal } from './components/portal/StudentProgrammeSelectionPortal';
+import { Institution, AcademicProgramme, StudentAcademicSelection } from './types';
+import { ALL_KENYAN_INSTITUTIONS } from './services/institutionService';
 import { fetchUserNotifications } from './services/workplaceService';
 import {
   BookOpen,
@@ -55,6 +57,7 @@ import {
   Info,
   Building2,
   Award,
+  GraduationCap,
 } from 'lucide-react';
 
 const PROTECTED_ROUTES = new Set([
@@ -102,6 +105,14 @@ function MainApp() {
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [preselectedInstitution, setPreselectedInstitution] = useState<Institution | null>(null);
   const [preselectedProgramme, setPreselectedProgramme] = useState<AcademicProgramme | null>(null);
+  const [selectedAcademicPath, setSelectedAcademicPath] = useState<StudentAcademicSelection | null>(() => {
+    try {
+      const saved = localStorage.getItem('learning_hub_selected_programme');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [authEmailPrefill, setAuthEmailPrefill] = useState<string>('');
 
@@ -251,6 +262,22 @@ function MainApp() {
             </button>
 
             <button
+              id="nav-unauth-find-programme"
+              type="button"
+              onClick={() => navigateTo('/find-programme')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm ${
+                currentRoute === '/find-programme' || currentRoute === '/programmes'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
+                  : 'text-cyan-300 hover:text-white hover:bg-cyan-500/10 border border-cyan-400/30'
+              }`}
+              title="Find Your Programme (Guided Higher-Education Selection Portal)"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Find Your Programme</span>
+              <span className="sm:hidden">Programmes</span>
+            </button>
+
+            <button
               id="nav-unauth-programmes"
               type="button"
               onClick={() => setProgrammeDiscoveryModalOpen(true)}
@@ -258,7 +285,7 @@ function MainApp() {
               title="Search all approved Kenyan tertiary academic programmes and courses"
             >
               <Award className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Search Programmes</span>
+              <span className="hidden sm:inline">Course Catalogue</span>
               <span className="sm:hidden">Courses</span>
             </button>
 
@@ -266,7 +293,7 @@ function MainApp() {
               id="nav-unauth-discovery"
               type="button"
               onClick={() => setDiscoveryModalOpen(true)}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-cyan-300 hover:text-white hover:bg-cyan-500/10 border border-cyan-400/30 transition-all cursor-pointer shadow-sm"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 border border-white/10 transition-all cursor-pointer shadow-sm"
               title="Find accredited universities, polytechnics, TVETs, and colleges"
             >
               <Search className="w-3.5 h-3.5 text-cyan-400" />
@@ -302,9 +329,29 @@ function MainApp() {
         </header>
 
         {/* Unauthenticated Pages Content */}
-        <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex items-center justify-center">
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex items-center justify-center">
           {(currentRoute === '/' || currentRoute === '/home') && (
             <HomeView onNavigate={navigateTo} />
+          )}
+
+          {(currentRoute === '/find-programme' || currentRoute === '/programmes') && (
+            <StudentProgrammeSelectionPortal
+              initialSelection={selectedAcademicPath}
+              onContinueToWorkplace={(sel) => {
+                setSelectedAcademicPath(sel);
+                const inst = ALL_KENYAN_INSTITUTIONS.find((i) => i.id === sel.institutionId);
+                if (inst) setPreselectedInstitution(inst);
+                navigateTo('/dashboard');
+              }}
+              onSelectForRegister={(sel) => {
+                setSelectedAcademicPath(sel);
+                const inst = ALL_KENYAN_INSTITUTIONS.find((i) => i.id === sel.institutionId);
+                if (inst) setPreselectedInstitution(inst);
+                navigateTo('/register');
+              }}
+              onSwitchToLogin={() => navigateTo('/login')}
+              onBackToHome={() => navigateTo('/')}
+            />
           )}
 
           {currentRoute === '/about' && (
@@ -331,6 +378,7 @@ function MainApp() {
               initialEmail={authEmailPrefill}
               initialInstitution={preselectedInstitution}
               initialProgramme={preselectedProgramme}
+              initialAcademicSelection={selectedAcademicPath}
               onSuccess={() => navigateTo('/dashboard')}
               onSwitchToLogin={(em) => {
                 if (em) setAuthEmailPrefill(em);
@@ -342,6 +390,7 @@ function MainApp() {
               }}
               onOpenDiscovery={() => setDiscoveryModalOpen(true)}
               onOpenProgrammeDiscovery={() => setProgrammeDiscoveryModalOpen(true)}
+              onOpenProgrammePortal={() => navigateTo('/find-programme')}
             />
           )}
 
@@ -473,6 +522,22 @@ function MainApp() {
             )}
           </button>
 
+          {/* Programme Selection Portal Button */}
+          <button
+            id="top-portal-btn"
+            type="button"
+            onClick={() => navigateTo('/find-programme')}
+            className={`hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+              currentRoute === '/find-programme' || currentRoute === '/programmes'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
+                : 'bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 text-cyan-300'
+            }`}
+            title="Launch Guided Programme Selection Portal"
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Programme Portal</span>
+          </button>
+
           {/* Course Catalogue Button */}
           <button
             id="top-programmes-btn"
@@ -552,6 +617,25 @@ function MainApp() {
 
             {/* Dynamic Page Views */}
             <section className="w-full">
+              {(currentRoute === '/find-programme' || currentRoute === '/programmes') && (
+                <StudentProgrammeSelectionPortal
+                  initialSelection={
+                    selectedAcademicPath ||
+                    (userProfile
+                      ? {
+                          institutionId: userProfile.institutionId,
+                          departmentId: userProfile.departmentId,
+                          programmeId: userProfile.programmeId,
+                        }
+                      : null)
+                  }
+                  onContinueToWorkplace={(sel) => {
+                    setSelectedAcademicPath(sel);
+                    navigateTo('/dashboard');
+                  }}
+                  onBackToHome={() => navigateTo('/dashboard')}
+                />
+              )}
               {currentRoute === '/dashboard' && <DashboardView onNavigate={navigateTo} />}
               {currentRoute === '/units' && <MyUnitsView onNavigate={navigateTo} />}
               {currentRoute === '/campus' && <CampusHubView onNavigate={navigateTo} />}

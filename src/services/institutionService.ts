@@ -24,6 +24,7 @@ import {
   StudentSport,
   FacilityCategory,
   CourseLevel,
+  DepartmentItem,
 } from '../types';
 import {
   TVETA_VERIFIED_INSTITUTIONS,
@@ -1850,6 +1851,203 @@ export async function getProgrammesBySchool(
     return inst.programmes.filter((p) => p.schoolId === schoolId);
   }
   return inst.programmes;
+}
+
+function normalizeDeptString(val?: string): string {
+  if (!val) return '';
+  return val
+    .toLowerCase()
+    .replace(/^department of\s+/i, '')
+    .replace(/^dept\.?\s+of\s+/i, '')
+    .replace(/^school of\s+/i, '')
+    .replace(/^faculty of\s+/i, '')
+    .trim();
+}
+
+/**
+ * Gets all verified academic departments belonging strictly to an institution.
+ * Extracts from the institution's official faculties/schools, catalogued programmes,
+ * and custom administrator registry records.
+ */
+export async function getDepartmentsByInstitution(
+  institutionId: string
+): Promise<DepartmentItem[]> {
+  const inst = await getInstitutionById(institutionId);
+  if (!inst) return [];
+
+  const deptMap = new Map<string, DepartmentItem>();
+
+  // 1. Extract from schools / faculties configuration
+  if (inst.schools && inst.schools.length > 0) {
+    inst.schools.forEach((school) => {
+      school.departments.forEach((deptName) => {
+        const normKey = normalizeDeptString(deptName);
+        if (!normKey) return;
+
+        const deptId = `${inst.id}-${normKey.replace(/[^a-z0-9]+/g, '-')}`;
+        
+        // Count programmes linked to this department
+        const count = inst.programmes.filter((p) => {
+          const pNorm = normalizeDeptString(p.department);
+          return (
+            pNorm === normKey ||
+            (p.department && p.department.toLowerCase() === deptName.toLowerCase()) ||
+            (p.schoolId && p.schoolId === school.id && (!p.department || pNorm === normKey))
+          );
+        }).length;
+
+        deptMap.set(normKey, {
+          id: deptId,
+          name: deptName.startsWith('Department of') ? deptName : `Department of ${deptName}`,
+          institutionId: inst.id,
+          institutionName: inst.name,
+          schoolId: school.id,
+          schoolName: school.name,
+          description: `Academic department within the ${school.name} offering verified tertiary curricula.`,
+          programmesCount: count,
+        });
+      });
+    });
+  }
+
+  // 2. Discover departments present on programmes that might not be in the schools array
+  if (inst.programmes && inst.programmes.length > 0) {
+    inst.programmes.forEach((prog) => {
+      if (prog.department) {
+        const normKey = normalizeDeptString(prog.department);
+        if (normKey && !deptMap.has(normKey)) {
+          const deptId = `${inst.id}-${normKey.replace(/[^a-z0-9]+/g, '-')}`;
+          const count = inst.programmes.filter(
+            (p) => normalizeDeptString(p.department) === normKey
+          ).length;
+
+          deptMap.set(normKey, {
+            id: deptId,
+            name: prog.department.startsWith('Department of')
+              ? prog.department
+              : `Department of ${prog.department}`,
+            institutionId: inst.id,
+            institutionName: inst.name,
+            schoolId: prog.schoolId,
+            schoolName: prog.schoolName,
+            description: `Academic department administering ${prog.field || 'higher-learning'} programmes.`,
+            programmesCount: count,
+          });
+        }
+      }
+    });
+  }
+
+  // 3. Check Firestore custom added departments for this institution
+  try {
+    const customDeptsSnap = await getDocs(
+      collection(db, 'institutions', inst.id, 'departments')
+    );
+    customDeptsSnap.forEach((docSnap) => {
+      const data = docSnap.data() as Partial<DepartmentItem>;
+      if (data.name) {
+        const normKey = normalizeDeptString(data.name);
+        const existing = deptMap.get(normKey);
+        deptMap.set(normKey, {
+          id: docSnap.id,
+          name: data.name,
+          institutionId: inst.id,
+          institutionName: inst.name,
+          schoolId: data.schoolId || existing?.schoolId,
+          schoolName: data.schoolName || existing?.schoolName,
+          description: data.description || existing?.description,
+          programmesCount: data.programmesCount ?? existing?.programmesCount ?? 0,
+          image: data.image || existing?.image,
+          logo: data.logo || existing?.logo,
+        });
+      }
+    });
+  } catch (err) {
+    // Non-blocking in case no subcollection exists yet
+  }
+
+  return Array.from(deptMap.values()).sort((a, b) => {
+    // Sort departments with programmes first, then alphabetically
+    if (b.programmesCount !== a.programmesCount) {
+      return b.programmesCount - a.programmesCount;
+    }
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/**
+ * Gets programmes linked strictly to a selected department and institution.
+ */
+export async function getProgrammesByDepartment(
+  institutionId: string,
+  departmentIdOrName: string
+): Promise<AcademicProgramme[]> {
+  const inst = await getInstitutionById(institutionId);
+  if (!inst) return [];
+
+  const cleanDept = normalizeDeptString(departmentIdOrName);
+  const targetId = departmentIdOrName.toLowerCase();
+
+  return inst.programmes.filter((p) => {
+    const pDeptNorm = normalizeDeptString(p.department);
+    const pDeptId = p.departmentId ? p.departmentId.toLowerCase() : '';
+    const pSchoolId = p.schoolId ? p.schoolId.toLowerCase() : '';
+
+    return (
+      pDeptNorm === cleanDept ||
+      pDeptId === targetId ||
+      (p.department && p.department.toLowerCase() === targetId) ||
+      pSchoolId === targetId
+    );
+  });
+}
+
+/**
+ * Adds an academic department to an institution (Administrator action).
+ */
+export async function addCustomDepartment(
+  institutionId: string,
+  dept: {
+    name: string;
+    schoolName?: string;
+    description?: string;
+  }
+): Promise<DepartmentItem> {
+  const normKey = normalizeDeptString(dept.name);
+  const deptId = `${institutionId}-${normKey.replace(/[^a-z0-9]+/g, '-') || Date.now()}`;
+  const inst = await getInstitutionById(institutionId);
+
+  const newDept: DepartmentItem = {
+    id: deptId,
+    name: dept.name.startsWith('Department of') ? dept.name : `Department of ${dept.name}`,
+    institutionId,
+    institutionName: inst?.name || institutionId,
+    schoolName: dept.schoolName || 'Faculty of Academic Affairs',
+    description: dept.description || `Department configured in ${inst?.name || 'institution'} registry.`,
+    programmesCount: 0,
+  };
+
+  const docRef = doc(db, 'institutions', institutionId, 'departments', deptId);
+  await setDoc(docRef, newDept, { merge: true });
+
+  return newDept;
+}
+
+/**
+ * Adds a new academic programme to an institution (Administrator action).
+ */
+export async function addCustomProgramme(
+  prog: AcademicProgramme
+): Promise<void> {
+  const progId = prog.id || `${prog.institutionId}-${(prog.code || prog.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const docRef = doc(db, 'programmes', progId);
+  await setDoc(docRef, { ...prog, id: progId }, { merge: true });
+
+  // Also record under institution subcollection for instant indexing
+  if (prog.institutionId) {
+    const instSubRef = doc(db, 'institutions', prog.institutionId, 'programmes', progId);
+    await setDoc(instSubRef, { ...prog, id: progId }, { merge: true });
+  }
 }
 
 /**

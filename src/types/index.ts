@@ -198,6 +198,38 @@ export interface AcademicProgramme {
   overview?: string;
   careerProspects?: string[];
   curriculumStages?: CurriculumStage[];
+  intakes?: string[];
+}
+
+export interface DepartmentItem {
+  id: string;
+  name: string;
+  institutionId: string;
+  institutionName: string;
+  schoolId?: string;
+  schoolName?: string;
+  description?: string;
+  programmesCount: number;
+  image?: string;
+  logo?: string;
+}
+
+export interface StudentAcademicSelection {
+  institutionId: string;
+  institutionName: string;
+  institutionType?: string;
+  departmentId: string;
+  departmentName: string;
+  programmeId: string;
+  programmeName: string;
+  programmeCode: string;
+  courseLevel: string;
+  studyMode: string;
+  campusId?: string;
+  campusName?: string;
+  intake?: string;
+  duration?: string;
+  selectedAt: string;
 }
 
 export interface ProgrammeUnit {

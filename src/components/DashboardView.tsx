@@ -67,6 +67,16 @@ interface DashboardProps {
 export const DashboardView: React.FC<DashboardProps> = ({ onNavigate }) => {
   const { currentUser, userProfile } = useAuth();
 
+  // Retrieve stored selection from portal if available
+  const storedSelection = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('learning_hub_selected_programme');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Real Firestore workplace data states
   const [documents, setDocuments] = useState<AcademicDocument[]>([]);
   const [classes, setClasses] = useState<AcademicClass[]>([]);
@@ -413,16 +423,27 @@ export const DashboardView: React.FC<DashboardProps> = ({ onNavigate }) => {
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-[11px] font-bold uppercase tracking-wider">
                 <Building2 className="w-3.5 h-3.5" />
-                <span>{userProfile?.institutionName || 'Kenyan University'}</span>
+                <span>{userProfile?.institutionName || storedSelection?.institutionName || 'Kenyan Higher Learning Institution'}</span>
               </span>
               <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-300 text-[11px] font-medium">
                 <MapPin className="w-3 h-3 text-cyan-400" />
-                <span>{userProfile?.campusName || 'Main Campus'}</span>
+                <span>{userProfile?.campusName || storedSelection?.campusName || 'Main Campus'}</span>
               </span>
-              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-900 border border-white/10 text-slate-300 text-[11px] font-mono">
-                <GraduationCap className="w-3 h-3 text-cyan-400" />
-                <span>{userProfile?.yearOfStudy || 'Year 1'}, {userProfile?.semester || 'Semester 1'}</span>
-              </span>
+              {(userProfile?.departmentName || storedSelection?.departmentName) && (
+                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/30 text-indigo-300 text-[11px] font-medium">
+                  <BookOpen className="w-3 h-3 text-indigo-400" />
+                  <span>{userProfile?.departmentName || storedSelection?.departmentName}</span>
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onNavigate('/find-programme')}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-[11px] font-semibold transition-all cursor-pointer"
+                title="Change Programme / Selection Portal"
+              >
+                <Compass className="w-3 h-3 text-cyan-400" />
+                <span>Programme Portal</span>
+              </button>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-heading">
@@ -430,7 +451,11 @@ export const DashboardView: React.FC<DashboardProps> = ({ onNavigate }) => {
             </h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-300 mt-1.5">
               <span className="font-semibold text-cyan-300">
-                {userProfile?.programmeName || 'Bachelor of Science in Computer Science'}
+                {userProfile?.programmeName || storedSelection?.programmeName || 'Bachelor of Information Technology'}
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="text-emerald-400 font-mono">
+                {userProfile?.courseLevel || storedSelection?.courseLevel || "Bachelor's Degree"}
               </span>
               {userProfile?.registrationNumber && (
                 <>

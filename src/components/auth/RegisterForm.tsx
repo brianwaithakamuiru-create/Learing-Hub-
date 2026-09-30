@@ -15,6 +15,7 @@ import {
   ProgrammeUnit,
   CourseLevel,
   ExaminingBody,
+  StudentAcademicSelection,
 } from '../../types';
 import {
   Building2,
@@ -50,11 +51,13 @@ interface RegisterFormProps {
   initialEmail?: string;
   initialInstitution?: Institution | null;
   initialProgramme?: AcademicProgramme | null;
+  initialAcademicSelection?: StudentAcademicSelection | null;
   onSuccess: (fullName: string) => void;
   onSwitchToLogin: (email?: string) => void;
   onForgotPassword?: (email?: string) => void;
   onOpenDiscovery?: () => void;
   onOpenProgrammeDiscovery?: () => void;
+  onOpenProgrammePortal?: () => void;
 }
 
 const INSTITUTION_TYPES: Array<InstitutionType | 'All'> = [
@@ -71,10 +74,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   initialEmail = '',
   initialInstitution = null,
   initialProgramme = null,
+  initialAcademicSelection = null,
   onSuccess,
   onSwitchToLogin,
   onOpenDiscovery,
   onOpenProgrammeDiscovery,
+  onOpenProgrammePortal,
 }) => {
   const { registerUser } = useAuth();
 
@@ -159,6 +164,37 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       }
     }
   }, [initialProgramme]);
+
+  // Initial full academic selection from the Guided Selection Portal
+  useEffect(() => {
+    if (initialAcademicSelection) {
+      const inst = ALL_KENYAN_INSTITUTIONS.find(
+        (i) => i.id.toLowerCase() === initialAcademicSelection.institutionId.toLowerCase()
+      );
+      if (inst) {
+        handleSelectInstitution(inst);
+        if (initialAcademicSelection.campusId) {
+          const camp = inst.campuses.find((c) => c.id === initialAcademicSelection.campusId);
+          if (camp) setSelectedCampus(camp);
+        }
+        if (initialAcademicSelection.departmentName) {
+          setSelectedDepartment(initialAcademicSelection.departmentName);
+        }
+        if (initialAcademicSelection.courseLevel) {
+          setCourseLevel(initialAcademicSelection.courseLevel);
+        }
+        const prog = inst.programmes.find(
+          (p) =>
+            p.id.toLowerCase() === initialAcademicSelection.programmeId.toLowerCase() ||
+            p.code.toLowerCase() === initialAcademicSelection.programmeCode.toLowerCase()
+        );
+        if (prog) {
+          handleSelectProgramme(prog);
+        }
+        setCurrentStep(3); // Jump straight to student credentials step!
+      }
+    }
+  }, [initialAcademicSelection]);
 
   // Filter institutions based on search query and type filter
   const matchingInstitutions = useMemo(() => {
@@ -533,6 +569,29 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       {/* ========================================================================= */}
       {currentStep === 1 && (
         <div className="space-y-4 animate-in fade-in duration-200">
+          {onOpenProgrammePortal && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-cyan-500/15 to-sky-500/10 border border-cyan-400/30 flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 shrink-0">
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-white block">Guided Programme Selection Portal</span>
+                  <span className="text-[11px] text-slate-300">
+                    Step-by-step: Institution → Department → Programme → Level → Mode → Campus
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenProgrammePortal}
+                className="px-3.5 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all shadow-sm shrink-0 ml-2"
+              >
+                Launch Portal
+              </button>
+            </div>
+          )}
+
           {/* Search Box */}
           <div className="relative">
             <div className="flex items-center justify-between mb-1.5">

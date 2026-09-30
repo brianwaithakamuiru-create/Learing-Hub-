@@ -35,22 +35,32 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
       {/* Action Buttons */}
       <div className="mt-8 flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
         <button
+          id="home-find-programme-btn"
+          type="button"
+          onClick={() => onNavigate('/find-programme')}
+          className="w-full sm:w-auto px-7 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-slate-950 font-bold text-sm shadow-[0_0_25px_rgba(34,211,238,0.35)] transition-all flex items-center justify-center space-x-2 cursor-pointer"
+        >
+          <GraduationCap className="w-4 h-4 text-slate-950" />
+          <span>Find Your Programme</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+
+        <button
           id="home-create-account-btn"
           type="button"
           onClick={() => onNavigate('/register')}
-          className="w-full sm:w-auto px-7 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-slate-950 font-bold text-sm shadow-[0_0_25px_rgba(34,211,238,0.35)] transition-all flex items-center justify-center space-x-2 cursor-pointer"
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900/90 hover:bg-slate-800/90 border border-cyan-400/40 text-cyan-300 font-semibold text-sm transition-all flex items-center justify-center space-x-2 cursor-pointer"
         >
           <span>Create Student Account</span>
-          <ArrowRight className="w-4 h-4" />
         </button>
 
         <button
           id="home-login-btn"
           type="button"
           onClick={() => onNavigate('/login')}
-          className="w-full sm:w-auto px-7 py-3 rounded-xl bg-slate-900/80 hover:bg-slate-800/90 border border-white/20 text-white font-semibold text-sm transition-all flex items-center justify-center cursor-pointer"
+          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/80 border border-white/10 text-slate-300 hover:text-white font-medium text-sm transition-all flex items-center justify-center cursor-pointer"
         >
-          <span>Sign In to Workspace</span>
+          <span>Sign In</span>
         </button>
       </div>
 
